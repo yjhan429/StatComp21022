@@ -1,0 +1,17 @@
+Package: StatComp21022
+Type: Package
+Title: Final project for 'Statistical Computing' course
+Version: 1.0
+Date: 2021-12-10
+Author: Yejing Han
+Maintainer: Yejing Han <hanyejing@mail.ustc.edu.cn>
+Description: Several R and Rcpp functions including homework of this course and own research project. 
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.5), microbenchmark, stats, Ball, MASS, RANN, boot, bootstrap, energy, parallel, pls
+LinkingTo: Rcpp
+RoxygenNote: 7.1.2
+Encoding: UTF-8
+Suggests: knitr,rmarkdown
+VignetteBuilder: knitr
+URL: http://github.com/yjhan429/StatComp21022
+BugReports: http://github.com/yjhan429/StatComp21022/issues

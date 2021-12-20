@@ -1,0 +1,239 @@
+---
+title: "Introduction to StatComp21022"
+author: "Yejing Han"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to StatComp21022}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Overview
+
+__StatComp21022__ is a simple R package for several methods for multivariate linear regression. Three functions are considered, namely, _FES_ (factor estimation and selection with the tuning parameter selected), _PLS0_ (two-block partial least squares), and _modelerror_ (model error of the two methods). The package has two built-in datasets _samplex_ and _sampley_ and we will test on them. 
+
+
+## Problem description and solving
+
+For dimension reduction and coefficient estimation in the multivariate linear model, consider penalized least squares estimate with penalty employed by coefficient matrix's Ky Fan norm, which encourages the sparsity among singular values and at the same time gives shrinkage coefficient estimates. And there's also propose a criterion for the selection of the tuning parameter for better estimation. 
+
+In general multivariate linear regression, we have $n$ observations on $q$ responses $\textbf{y} = (y_1, \cdots, y_q)'$ and $p$ explanatory variables $\textbf{x} = (x_1, \cdots, x_p)'$, and
+\begin{equation}
+	Y = XB + E
+\end{equation}
+where $\textbf{Y} = (\textbf{y}_1, \cdots, \textbf{y}_n)'$ is an $n \times q$ matrix, $\textbf{X} = (\textbf{x}_1, \cdots, \textbf{x}_n)'$ is an $n \times p$ matrix, $B$ is a $p \times q$ coefficient matrix, $\textbf{E} = (\textbf{e}_1, \cdots, \textbf{e}_n)'$ is the regression noise and the $\textbf{e}$s are independently sampled from $\mathcal{N}(0, \Sigma)$.
+
+Then we set $F_i = X\eta_i\ (i = 1, \cdots, p)$ for dimension reduction, and $(\eta_1, \cdots, \eta_p)\Omega = B$ so
+\begin{equation}
+  Y = F\Omega + E, 
+\end{equation}
+where $\Omega$ is a $p \times q$ matrix such that $(\eta_1, \cdots, \eta_p)\Omega = B$. 
+As pointed out by Turlach et al. (2005), a family of estimates for this can be obtained by 
+\begin{equation}
+  \begin{aligned}
+    \min[tr\{(Y - F\Omega)W(Y - F\Omega)'\}] \qquad subject\ to \sum_{i=1}^p \parallel \omega_i \parallel_{\alpha} \leqslant t, 
+  \end{aligned}
+\end{equation}
+where $W$ is a weight matrix, $\omega_i$ is the $i$th row of $\Omega$, $t \geqslant 0$ is a regularization parameter and $\parallel \cdot \parallel_{\alpha}$ is the $l_{\alpha}$-norm for some $\alpha \geqslant 1$, i.e. $\parallel \omega_i \parallel_{\alpha} = (\Omega_{i1}^{\alpha} + \cdots + \Omega_{iq}^{\alpha})^{1/\alpha}$. And we shall choose $W = I$ and $\alpha = 2$ here. 
+If $t$ is appropriately chosen, minimizing the expression yields a shrinkage estimate that some of the $\omega_i$s will be set to 0, and the $i$th factor will be included in the final estimate if and only if $\omega_i$ is non-zero. So in this way we reach our goal that carry out dimension reduction and coefficient estimation at the same time. 
+Write $U = (\eta_1, \cdots, \eta_p)$. Denote the singular value decomposition of $B$ as $B = UDV'$, where $V$ is $q \times q$ orthonormal matrix and $D$ is a $p \times q$ matrix such that $D_{ij} = 0$ for any $i \neq j$ and $D_{ii} = \sigma_i(B)$ where $\sigma_i(\cdot)$ represents the $i$th largest singular value of a matrix. 
+Now $\Omega = DV'$ and $\omega_i = \sigma_i(B)V_i$ where $V_i$ is the $i$th column of $V$, and $\parallel \omega_i \parallel_2 = \sigma_i(B)$. Therefore, expression with $\alpha = 2$ gives
+\begin{equation}
+  \begin{aligned}
+    \min[tr\{(Y - XB)(Y - XB)'\}] \qquad subject\ to\ \sum_{i=1}^{\min(p, q)} \sigma_i(B) \leqslant t, \nonumber
+  \end{aligned}
+\end{equation}
+where $\sum_{i=1}^{\min(p, q)} \sigma_i(B)$ is known as the Ky Fan norm of $B$. We shall use the minimizer of this expression as final estimate of $B$.
+
+For calculation of $B$, we consider the orthogonal design where $X'X = nI$, and the following lemma gives simulation of $B$. 
+\begin{lemma}
+Let $\hat{U}^{LS}\hat{D}^{LS}\hat{V}^{LS}$ be the singular value decomposition of the least squares estimate $\hat{B}^{LS}$. Then, under the orthogonal design, the minimizer of expression is
+$$\hat{B} = \hat{U}^{LS}\hat{D}(\hat{V}^{LS})', $$
+where $\hat{D}_{ij} = 0$ if $i \neq j$, $\hat{D}_{ii} = \max(\hat{D}_{ii}^{LS}-\lambda, 0)$ and $\lambda \geqslant 0$ is a constant such that $\sum_i \hat{D}_{ii} = \min(t, \sum \hat{D}_{ii}^{LS})$. 
+\end{lemma}
+
+So from the lemma that with a given $t$, we can get $\hat{B}$ fit for purpose, and minimize the following expression of GCV score can help choose a appropriate $t$: 
+\begin{equation}
+  \mathrm{GCV}(t)=\frac{\operatorname{tr}\left\{(Y-X \hat{B})(Y-X \hat{B})^{\prime}\right\}}{q p-\mathrm{df}(t)}. 
+\end{equation}
+
+
+
+## Dataset
+
+Consider an example with $p = q = 8$.  
+Set the true coefficient matrix as a random $8\times 8$ matrix with singular values (3, 2, 1.5, 0, 0, 0, 0, 0): First simulated an $8\times 8$ random matrix whose elements are independently sampled from $N(0, 1)$, and then replace its singular values with (3, 2, 1.5, 0, 0, 0, 0, 0).  
+Predictor $x$ is generated from a multivariate normal distribution with correlation between $x_i$ and $x_j$ being $0.5^{|i−j|}$. $y$ is generated from $N(xB, I)$. The sample size is $n = 20$.  
+
+The dataset _samplex_ and _sampley_ are simulated from the above method with two lists of 200 groups of $x$ and $y$. The R code is as follows:
+
+```{r}
+library(MASS)
+set.seed(1)
+
+p <- 8
+q <- 8
+singular <- diag(c(3,2,1.5,0,0,0,0,0))
+
+B0 <- matrix(0, nrow = p, ncol = q)
+for (i in 1:p){
+  for (j in 1:q){
+    B0[i,j] <- rnorm(1)
+  }
+}
+
+a <- svd(B0)
+B <- a$u %*% singular %*% t(a$v)
+
+sigma <- matrix(0, p, q)
+for (i in 1:p){
+  for(j in 1:q){
+    sigma[i,j] <- 0.5^abs(i-j)
+  }
+}
+
+x <- list()
+y <- list()
+for(m in 1:200){
+  x0 <- mvrnorm(20, rep(0, 8), sigma)
+  x0.R <- qr.R(qr(x0))
+  x0.ortho <- sqrt(20)*x0 %*% solve(x0.R)
+  y0 <- matrix(0, nrow = 20, ncol = 8)
+  mean.y0 <- x0.ortho %*% B
+  for (i in 1:20){
+    y0[i,] <- mvrnorm(1, mean.y0[i,], diag(8))
+}
+  x[[m]] <- x0
+  y[[m]] <- y0
+}
+x[[201]] <- B
+x[[202]] <- sigma
+
+samplex <- x
+sampley <- y
+save(samplex, file="samplex.rda")
+save(sampley, file="sampley.rda")
+```
+
+Besides, we also provide the Gibbs sampler _gibbsC_ for $x$ and $y$ with the following Rcpp code: 
+
+```{Rcpp}
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+NumericMatrix gibbsC(int N, double a0, double b0, double n0, double mu1, double mu2) {
+  NumericMatrix mat(N, 2);
+  double x0 = 0, y0 = 0;
+  mat(0, 0) = mu1;
+  mat(0, 1) = mu2;
+  for(int i = 1; i < N; i++) {
+    y0 = mat(i-1, 1);
+    mat(i, 0) = rbinom(1, n0, y0)[0];
+    x0 = mat(i-1, 0);
+    mat(i, 1) = rbeta(1, x0+a0, n0-x0+b0)[0];
+  }
+  return(mat);
+}
+```
+
+
+## FES method algorithm
+
+The source R code of _FES_ with the method of factor estimation and selection with the tuning parameter selected is as follows.
+
+```{r}
+FES <- function(x0, y0){
+  
+  B.hat <- function(t, x, y){
+    B.OLS <- solve(t(x) %*% x) %*% t(x) %*% y 
+    a <- svd(B.OLS)
+    D.LS <- a$d
+  
+    sum.Dii.hat <- min(t, sum(a$d))
+    D.LS <- c(D.LS, 0)
+    for(k in 1:8){
+      k <- 9 - k
+      lambda <- (sum(D.LS[1:k]) - sum.Dii.hat)/k
+      if(lambda <= D.LS[k] && lambda >= D.LS[k+1]) break
+  }
+
+    D.hat <- matrix(rep(0, 8*8), nrow = 8, ncol = 8)
+    for(i in 1:8) D.hat[i, i] <- max(D.LS[i] - lambda, 0)
+    B <- a$u %*% D.hat %*% t(a$v)
+
+    K <- matrix(rep(0, 8*8), nrow = 8, ncol = 8)
+    for(i in 1:8){
+      if(D.hat[i, i] > 0) K <- K + a$v[, i] %*% t(a$v[, i]) / D.hat[i, i]
+    }
+  
+    df <- 8 * sum(diag(x %*% solve(t(x) %*% x + 2 * 20 * lambda * K) %*% t(x)))
+    GCV <- sum(diag((y - x %*% B) %*% t(y - x %*% B)))/(8*8 - df)
+  
+    return(list(B, GCV))
+  }
+  
+  GCVscore <- rep(0, 100)
+  t <- seq(from = 5, to = 25, length.out = 100)
+
+    for(i in 1:100) GCVscore[i] <- B.hat(t[i], x0, y0)[[2]]
+    t0 <- t[which.min(GCVscore)]
+    B0 <- B.hat(t0, x0, y0)[[1]]
+  
+  return(B0)
+}
+```
+
+We input the sample dataset and the true coefficient matrix $B$ and its singular matrix "sigma" in this package and get the output of the estimation $\hat{B}$. 
+
+
+## The PLS method
+
+To confirm the advantage of FES method, we provide another method to compare their results. The R code for two-block partial least squares is as follows.  
+
+```{r}
+library(pls)
+
+PLS0 <- function(x0, y0){
+    # find the number of components by tenfold cross-validation
+    estimate <- plsr(y0 ~ x0, scale=T, validation="CV", segments = 10)
+    k <- estimate$validation$ncomp
+
+    estimatek <- plsr(y0 ~ x0, ncomp = k, scale=T, validation="CV")
+    estimatek.coef <- coef(estimatek)/apply(y0, 2, sd) # regression coefficient
+    estimatek.int <- apply(y0, 2, mean) - estimatek.coef[,,1] %*% apply(x0, 2, mean) # intercept
+    return(estimatek.coef[,,1])
+}
+```
+
+
+## Compare the results
+
+We generate mean and standard error of model error of $\hat{B}$ for several groups of $x$ and $y$ to compare the results of the two methods. 
+And we test the dataset in this package, the R code is as follows:  
+
+```{r}
+modelerror <- function(N = 200, x, y, B, sigma, method){ # method = 1 for FES and method = 2 for PLS
+  me <- rep(0, N)
+  if(method == 1){
+    for(m in 1:N){
+      B0 <- FES(x[[m]], y[[m]])
+      me[m] <- mean(abs(t(B0 - B) %*% sigma %*% (B0 - B)))
+    }
+  }else if(method == 2){
+    for(m in 1:N){
+      B0 <- PLS0(x[[m]], y[[m]])
+      me[m] <- mean(abs(t(B0 - B) %*% sigma %*% (B0 - B)))
+    }
+  }
+  return(c(mean(me), sd(me)))
+}
+```
+
+So the output is mean and standard error of model error for $N$ groups of $x$ and $y$. 
+
+
+
+
+
+
